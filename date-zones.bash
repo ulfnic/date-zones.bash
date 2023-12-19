@@ -52,10 +52,15 @@ print_stderr() {
 
 # Define defaults
 date_str='now'
-format='+%Y-%m-%d %I:%M:%S %p %Z'
+format='+%Y-%m-%d %I:%M %p %Z'
 timezones=()
 timezones_formatted=()
 print_stderr__silent=
+config_dir=${CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}}'/date-zones.bash'
+declare -A timezone_aliases=(
+	['utc']='Etc/UTC'
+	['UTC']='Etc/UTC'
+)
 
 
 
@@ -90,6 +95,36 @@ type date &> /dev/null || print_stderr 1 '%s\n' 'missing dependency: date'
 
 
 
+# Define functions
+insert_arr_at_index(){
+	local -n \
+		insert_arr_at_index__source=$1 \
+		insert_arr_at_index__destination=$2
+
+	local \
+		index=${3:-0} \
+		index_offset_pre=${4:-0} \
+		index_offset_post=${5:-0}
+
+	insert_arr_at_index__destination=(
+		"${insert_arr_at_index__destination[@]:0:index+index_offset_pre}"
+		"${insert_arr_at_index__source[@]}"
+		"${insert_arr_at_index__destination[@]:index+index_offset_post}"
+	)
+}
+
+
+
+# Load aliases
+if [[ -f $config_dir'/aliases' ]]; then
+	while read -r timezone_alias timezone; do
+		[[ $timezone_alias && $timezone ]] || continue
+		timezone_aliases[$timezone_alias]=$timezone
+	done < "$config_dir"'/aliases'
+fi
+
+
+
 # Define fzf timezone picker
 get_tz() {
 	local tz_path fzf_params
@@ -108,24 +143,31 @@ get_tz() {
 
 
 
-# Validate timezones and expand aliases
+# Expand timezone aliases
 [[ ${#timezones} == '0' ]] && timezones=('local')
 for i in "${!timezones[@]}"; do
+	timezone=${timezones[i]}
 
-	# Normalize values
-	case ${timezones[i]} in
+	if [[ ${timezone_aliases[$timezone]} ]]; then
+		insert_arr=(${timezone_aliases[$timezone]})
+		insert_arr_at_index insert_arr timezones "$i" 0 1
+		continue
+	fi
+
+	case $timezone in
 		'_')
 			timezones[i]=$(get_tz --prompt="Timezone $((i+1)): ")
-			;;
-		'utc'|'UTC')
-			timezones[i]='Etc/UTC'
 			;;
 		'local')
 			timezones[i]=$(timedatectl show --property=Timezone --value)
 			;;
 	esac
+done
 
-	# Validate timezone exists
+
+
+# Validate timezone exists
+for i in "${!timezones[@]}"; do
 	[[ -e '/usr/share/zoneinfo/'${timezones[i]} ]] || print_stderr 1 '%s\n' 'No such TZ: '"${timezones[i]}"
 done
 
