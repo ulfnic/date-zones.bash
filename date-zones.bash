@@ -23,6 +23,7 @@ help_doc() {
 		                          Default: 'now'
 		  +FORMAT                 Date output format
 		                          Default: '+%Y-%m-%d %I:%M:%S %p %Z'
+		  --24hr                  Use 24hr clock for default date format
 		  --silent|-s             Only output dates
 		  --help                  Display help
 
@@ -72,6 +73,8 @@ while [[ $1 ]]; do
 			shift; date_str=$1 ;;
 		'+'*)
 			format=$1 ;;
+		'--24hr')
+			format='+%Y-%m-%d %H:%M %Z' ;;
 		'-s'|'--silent')
 			print_stderr__silent=1 ;;
 		'--help'|'-h')
