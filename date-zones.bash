@@ -137,6 +137,7 @@ fi
 
 # Define fzf timezone picker
 get_tz() {
+	GET_TZ__OUTPUT=
 	local tz_path fzf_params
 
 	# Check for fzf
@@ -151,7 +152,12 @@ get_tz() {
 	)
 
 	cd '/usr/share/zoneinfo/'
-	fzf "${fzf_params[@]}" < <(printf '%s\0' **)
+	GET_TZ__OUTPUT=$(fzf "${fzf_params[@]}" < <(
+		for path in **; do
+			[[ -d $path ]] && continue
+			printf '%s\0' "$path"
+		done
+	))
 }
 
 
@@ -169,9 +175,9 @@ for i in "${!timezones[@]}"; do
 
 	case $timezone in
 		'_')
-			timezone=$(get_tz --prompt="Timezone $((i+1)): ")
-			[[ $timezone ]] || print_stderr 1 '%s\n' 'no timezone selected'
-			timezones[i]=$timezone
+			get_tz --prompt="Timezone $((i+1)): "
+			[[ $GET_TZ__OUTPUT ]] || print_stderr 1 '%s\n' 'no timezone selected'
+			timezones[i]=$GET_TZ__OUTPUT
 			;;
 		'local')
 			timezones[i]=$(timedatectl show --property=Timezone --value)
