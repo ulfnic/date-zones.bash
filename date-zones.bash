@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 [[ $DEBUG ]] && set -x
 set -o errexit -o pipefail
+shopt -s globstar nullglob
 
 
 help_doc() {
@@ -138,12 +139,12 @@ get_tz() {
 		'-i'		# Case-incensitive
 		'--exact'	# Match contiguous normalized latin characters
 		'--tac'		# Reverse order of input
+		'--read0'	# Parse by null characters
 		"$@"
 	)
 
 	cd '/usr/share/zoneinfo/'
-	tz_path=$(fzf "${fzf_params[@]}")
-	[[ $tz_path == './'* ]] && printf '%s\n' "${tz_path:2}"
+	fzf "${fzf_params[@]}" < <(printf '%s\0' **)
 }
 
 
