@@ -162,7 +162,9 @@ for i in "${!timezones[@]}"; do
 
 	case $timezone in
 		'_')
-			timezones[i]=$(get_tz --prompt="Timezone $((i+1)): ")
+			timezone=$(get_tz --prompt="Timezone $((i+1)): ")
+			[[ $timezone ]] || print_stderr 1 '%s\n' 'no timezone selected'
+			timezones[i]=$timezone
 			;;
 		'local')
 			timezones[i]=$(timedatectl show --property=Timezone --value)
