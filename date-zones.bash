@@ -52,6 +52,13 @@ print_stderr() {
 
 
 
+# Perform minimum BASH version check
+if (( BASH_VERSINFO[0] < 4 || ( BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3 ) )); then
+	printf '%s\n' 'BASH version required >= 4.3 (released 2014)' 1>&2
+fi
+
+
+
 # Define defaults
 date_str='now'
 format='+%Y-%m-%d %I:%M %p %Z'
