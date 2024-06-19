@@ -93,7 +93,7 @@ timezones+=("$@")
 
 
 # Check dependencies
-type date fzf 1>/dev/null
+type date 1>/dev/null
 
 
 
@@ -130,6 +130,9 @@ fi
 # Define fzf timezone picker
 get_tz() {
 	local tz_path fzf_params
+
+	# Check for fzf
+	type fzf 1>/dev/null
 
 	fzf_params=(
 		'-i'		# Case-incensitive
