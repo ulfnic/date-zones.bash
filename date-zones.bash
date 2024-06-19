@@ -93,8 +93,7 @@ timezones+=("$@")
 
 
 # Check dependencies
-type fzf &> /dev/null || print_stderr 1 '%s\n' 'missing dependency: fzf'
-type date &> /dev/null || print_stderr 1 '%s\n' 'missing dependency: date'
+type date fzf 1>/dev/null
 
 
 
