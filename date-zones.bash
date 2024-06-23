@@ -9,26 +9,23 @@ help_doc() {
 
 		date-zones.bash [OPTION] [TIMEZONE...]
 
-		Outputs the date for the first TIMEZONE and converts that date to all subsequent TIMEZONEs
+		Outputs a date defined by OPTIONs, then converts it to TIMEZONEs
 
-		If no TIMEZONEs are provided the system timezone is used
+		OPTION
+		  --date|-d DATE          Date to use, default: 'now'
+		  --tz TIMEZONE           Timezone to use with --date, default: localtime
+		  +FORMAT                 Date output format, default: '+%Y-%m-%d %I:%M:%S %p %Z'
+		  --24hr                  Use 24hr clock for default date format
+		  --silent|-s             Only output dates
+		  --help                  Display help
 
-		TIMEZONE:
+		TIMEZONE
 		  _                       Use fzf to pick a timezone
 		  utc                     Alias for Etc/UTC
 		  local                   Use system timezone
 		  LOCALE                  A standard locale, ex: America/Los_Angeles
 
-		OPTION:
-		  --date|-d DATE          Date to use for first timezone
-		                          Default: 'now'
-		  +FORMAT                 Date output format
-		                          Default: '+%Y-%m-%d %I:%M:%S %p %Z'
-		  --24hr                  Use 24hr clock for default date format
-		  --silent|-s             Only output dates
-		  --help                  Display help
-
-		EXAMPLES:
+		EXAMPLES
 		  # Output what UTC time will be next wed @ 2pm and convert it to local time and a timezone picked from fzf
 		  date-zones.bash +%Y-%m-%dT%H:%M:%S -d 'wed 2pm' utc local _
 
@@ -62,6 +59,7 @@ fi
 # Define defaults
 date_str='now'
 format='+%Y-%m-%d %I:%M %p %Z'
+primary_tz='local'
 timezones=()
 timezones_formatted=()
 print_stderr__silent=
@@ -75,11 +73,12 @@ declare -A timezone_aliases=(
 
 
 # Handle parameters
-[[ $1 ]] || help_doc
 while [[ $1 ]]; do
 	case $1 in
 		'-d'|'--date')
 			shift; date_str=$1 ;;
+		'--tz')
+			shift; primary_tz=$1 ;;
 		'+'*)
 			format=$1 ;;
 		'--24hr')
@@ -126,16 +125,6 @@ insert_arr_at_index(){
 
 
 
-# Load aliases
-if [[ -f $config_dir'/aliases' ]]; then
-	while read -r timezone_alias timezone; do
-		[[ $timezone_alias && $timezone ]] || continue
-		timezone_aliases[$timezone_alias]=$timezone
-	done < "$config_dir"'/aliases'
-fi
-
-
-
 # Define fzf timezone picker
 get_tz() {
 	GET_TZ__OUTPUT=
@@ -163,8 +152,19 @@ get_tz() {
 
 
 
-# Expand timezone aliases
-[[ ${#timezones} == '0' ]] && timezones=('local')
+# Load config timezone aliases
+if [[ -f $config_dir'/aliases' ]]; then
+	while read -r timezone_alias timezone; do
+		[[ $timezone_alias && $timezone ]] || continue
+		timezone_aliases[$timezone_alias]=$timezone
+	done < "$config_dir"'/aliases'
+fi
+
+
+
+# Apply config timezone aliases
+[[ ${timezone_aliases[$primary_tz]} ]] && primary_tz=${timezone_aliases[$primary_tz]}
+
 for i in "${!timezones[@]}"; do
 	timezone=${timezones[i]}
 
@@ -173,38 +173,52 @@ for i in "${!timezones[@]}"; do
 		insert_arr_at_index insert_arr timezones "$i" 0 1
 		continue
 	fi
-
-	if [[ $timezone == '_' ]]; then
-		get_tz --prompt="Timezone $((i+1)): "
-		[[ $GET_TZ__OUTPUT ]] || print_stderr 1 '%s\n' 'no timezone selected'
-		timezones[i]=$GET_TZ__OUTPUT
-	fi
 done
 
 
 
-# Validate timezone exists
+# Apply core aliases and timzeone selection
+expand_underscore_alias() {
+	EXPAND_UNDERSCORE_ALIAS__OUTPUT=
+	[[ $1 == '_' ]] || return 1
+	get_tz --prompt="Timezone $((i+1)): "
+	[[ $GET_TZ__OUTPUT ]] || print_stderr 1 '%s\n' 'no timezone selected'
+	EXPAND_UNDERSCORE_ALIAS__OUTPUT=$GET_TZ__OUTPUT
+}
+expand_underscore_alias "$primary_tz" && primary_tz=$EXPAND_UNDERSCORE_ALIAS__OUTPUT
 for i in "${!timezones[@]}"; do
-	[[ -e '/usr/share/zoneinfo/'${timezones[i]} ]] || print_stderr 1 '%s\n' 'No such TZ: '"${timezones[i]}"
+	expand_underscore_alias "${timezones[i]}" && timezones[i]=$EXPAND_UNDERSCORE_ALIAS__OUTPUT
 done
 
 
 
-# Get the date string of the primary (first) timezone and store the formatted string of all timezones
-primary_date_str_utc=$(TZ=${timezones[0]} date -d "$date_str" --utc '+%Y-%m-%dT%H:%M:%S %Z')
+# Validate timezones exists
+validate_timezones() {
+	while [[ $1 ]]; do
+		[[ -e '/usr/share/zoneinfo/'$1 ]] || print_stderr 1 '%s\n' 'No such TZ: '"$1"
+		shift
+	done
+}
+validate_timezones "$primary_tz" "${timezones[@]}"
+
+
+
+# Get the date string of the primary timezone and store the formatted string of all timezones
+primary_date_str_utc=$(TZ=$primary_tz date -d "$date_str" --utc '+%Y-%m-%dT%H:%M:%S %Z')
+primary_date_formatted=$(printf '%s\n' "$primary_date_str_utc" | TZ=$primary_tz date -f - "$format")
 for i in "${!timezones[@]}"; do
 	timezones_formatted[i]=$(printf '%s\n' "$primary_date_str_utc" | TZ=${timezones[i]} date -f - "$format")
 done
 
 
 
-# Output the formatted dates
-[[ $print_stderr__silent ]] || printf '\e[32m%s\e[0m' "'$date_str' "
+# Output formatted dates
+[[ $print_stderr__silent ]] || printf '\e[32m%s\e[0m' "'${date_str}' ${primary_tz}: "
+printf '%s\n' "$primary_date_formatted"
+
+[[ ${#timezones[@]} == '0' ]] || printf '%s\n' "Converted to..."
 for i in "${!timezones[@]}"; do
-	if [[ ! $print_stderr__silent ]]; then
-		[[ $i == 1 ]] && printf '%s\n' "Converted to..."
-		printf '\e[32m%s\e[0m ' "${timezones[i]}:"
-	fi
+	[[ $print_stderr__silent ]] || printf '\e[32m%s\e[0m' "${timezones[i]}: "
 	printf '%s\n' "${timezones_formatted[i]}"
 done
 
