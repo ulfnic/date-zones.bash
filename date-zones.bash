@@ -67,6 +67,7 @@ timezones_formatted=()
 print_stderr__silent=
 config_dir=${CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}}'/date-zones.bash'
 declare -A timezone_aliases=(
+	['local']=$(timedatectl show --property=Timezone --value)
 	['utc']='Etc/UTC'
 	['UTC']='Etc/UTC'
 )
@@ -173,16 +174,11 @@ for i in "${!timezones[@]}"; do
 		continue
 	fi
 
-	case $timezone in
-		'_')
-			get_tz --prompt="Timezone $((i+1)): "
-			[[ $GET_TZ__OUTPUT ]] || print_stderr 1 '%s\n' 'no timezone selected'
-			timezones[i]=$GET_TZ__OUTPUT
-			;;
-		'local')
-			timezones[i]=$(timedatectl show --property=Timezone --value)
-			;;
-	esac
+	if [[ $timezone == '_' ]]; then
+		get_tz --prompt="Timezone $((i+1)): "
+		[[ $GET_TZ__OUTPUT ]] || print_stderr 1 '%s\n' 'no timezone selected'
+		timezones[i]=$GET_TZ__OUTPUT
+	fi
 done
 
 
