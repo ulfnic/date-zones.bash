@@ -203,8 +203,11 @@ validate_timezones "$primary_tz" "${timezones[@]}"
 
 
 
-# Get the date string of the primary timezone and store the formatted string of all timezones
-primary_date_str_utc=$(TZ=$primary_tz date -d "$date_str" --utc '+%Y-%m-%dT%H:%M:%S %Z')
+# Convert the primary date to UTC and use it to define all timezones in printing format
+primary_date_str_utc=$(
+	TZ=$primary_tz date -d "$date_str" '+%Y-%m-%dT%H:%M:%S %Z' \
+	| date --utc -f - '+%Y-%m-%d %I:%M %p %Z' \
+)
 primary_date_formatted=$(printf '%s\n' "$primary_date_str_utc" | TZ=$primary_tz date -f - "$format")
 for i in "${!timezones[@]}"; do
 	timezones_formatted[i]=$(printf '%s\n' "$primary_date_str_utc" | TZ=${timezones[i]} date -f - "$format")
