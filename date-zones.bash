@@ -209,14 +209,11 @@ validate_timezones "$primary_tz" "${timezones[@]}"
 
 
 
-# Convert the primary date to UTC and use it to define all timezones in printing format
-primary_date_str_utc=$(
-	TZ=$primary_tz date -d "$date_str" '+%Y-%m-%dT%H:%M:%S %Z' \
-	| date --utc -f - '+%Y-%m-%d %I:%M %p %Z' \
-)
-primary_date_formatted=$(printf '%s\n' "$primary_date_str_utc" | TZ=$primary_tz date -f - "$format")
+# Prepare dates for printing using the Unix epoch time of the primary date for all locales
+primary_date_epoch=$(TZ=$primary_tz date -d "$date_str" '+%s')
+primary_date_formatted=$(TZ=$primary_tz date -d "@${primary_date_epoch}" "$format")
 for i in "${!timezones[@]}"; do
-	timezones_formatted[i]=$(printf '%s\n' "$primary_date_str_utc" | TZ=${timezones[i]} date -f - "$format")
+	timezones_formatted[i]=$(TZ=${timezones[i]} date -d "@${primary_date_epoch}" "$format")
 done
 
 
