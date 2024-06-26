@@ -12,9 +12,9 @@ help_doc() {
 		Outputs a date defined by OPTIONs, then converts it to TIMEZONEs
 
 		OPTION
-		  --date|-d DATE          Date to use, default: 'now'
-		  --tz TIMEZONE           Timezone to use with --date, default: localtime
-		  +FORMAT                 Date output format, default: '+%Y-%m-%d %I:%M:%S %p %Z'
+		  --date|-d <DATE>        Date to use, default: 'now'
+		  --tz <TIMEZONE>         Timezone to use with --date, default: localtime
+		  +<FORMAT>               Date output format, default: '+%Y-%m-%d %I:%M:%S %p %Z'
 		  --24hr                  Use 24hr clock for default date format
 		  --silent|-s             Only output dates
 		  --help                  Display help
@@ -23,14 +23,20 @@ help_doc() {
 		  _                       Use fzf to pick a timezone
 		  utc                     Alias for Etc/UTC
 		  local                   Use system timezone
-		  LOCALE                  A standard locale, ex: America/Los_Angeles
+		  <LOCALE>                A standard locale, ex: America/Los_Angeles
 
 		EXAMPLES
-		  # Output what UTC time will be next wed @ 2pm and convert it to local time and a timezone picked from fzf
-		  date-zones.bash +%Y-%m-%dT%H:%M:%S -d 'wed 2pm' utc local _
+		  # Output local date and using a specific format
+		  date-zones.bash +%Y-%m-%dT%H:%M:%S
 
-		  # Output what local time will be in 2hrs and convert it to Los_Angeles and London time
-		  date-zones.bash -d '2 hours' local America/Los_Angeles Europe/London
+		  # Output local date, then convert it to America/New_York time and two fzf picked timezones
+		  date-zones.bash 'America/New_York' _ _
+
+		  # Output date in Prague for Wed 2pm, then convert it to Asia/Hong_Kong time
+		  date-zones.bash --tz 'Europe/Prague' -d 'Wed 2pm' 'Asia/Hong_Kong'
+
+		  # Output date in fzf picked timezone at Wed 2pm, then convert it to Europe/London time
+		  date-zones.bash --tz _ -d 'wed 2pm' 'Europe/London'
 
 	HelpDoc
 	[[ $1 ]] && exit "$1"
