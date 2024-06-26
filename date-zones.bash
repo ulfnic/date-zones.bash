@@ -64,7 +64,7 @@ fi
 
 # Define defaults
 date_str='now'
-format='+%Y-%m-%d %I:%M %p %Z'
+date_output_format='+%Y-%m-%d %I:%M %p %Z'
 primary_tz='local'
 timezones=()
 timezones_formatted=()
@@ -86,9 +86,9 @@ while [[ $1 ]]; do
 		'--tz')
 			shift; primary_tz=$1 ;;
 		'+'*)
-			format=$1 ;;
+			date_output_format=$1 ;;
 		'--24hr')
-			format='+%Y-%m-%d %H:%M %Z' ;;
+			date_output_format='+%Y-%m-%d %H:%M %Z' ;;
 		'-s'|'--silent')
 			print_stderr__silent=1 ;;
 		'--help'|'-h')
@@ -111,7 +111,7 @@ type date 1>/dev/null
 
 
 
-# Define functions
+# Define array combiner
 insert_arr_at_index(){
 	local -n \
 		insert_arr_at_index__source=$1 \
@@ -132,8 +132,8 @@ insert_arr_at_index(){
 
 
 # Define fzf timezone picker
-get_tz() {
-	GET_TZ__OUTPUT=
+tz_picker() {
+	TZ_PICKER__OUTPUT=
 	local tz_path fzf_params
 
 	# Check for fzf
@@ -148,7 +148,7 @@ get_tz() {
 	)
 
 	cd '/usr/share/zoneinfo/'
-	GET_TZ__OUTPUT=$(fzf "${fzf_params[@]}" < <(
+	TZ_PICKER__OUTPUT=$(fzf "${fzf_params[@]}" < <(
 		for path in **; do
 			[[ -d $path ]] && continue
 			printf '%s\0' "$path"
@@ -158,7 +158,7 @@ get_tz() {
 
 
 
-# Load config timezone aliases
+# Add aliases present in config file
 if [[ -f $config_dir'/aliases' ]]; then
 	while read -r timezone_alias timezone; do
 		[[ $timezone_alias && $timezone ]] || continue
@@ -168,9 +168,8 @@ fi
 
 
 
-# Apply config timezone aliases
+# Convert aliases to timezones
 [[ ${timezone_aliases[$primary_tz]} ]] && primary_tz=${timezone_aliases[$primary_tz]}
-
 for i in "${!timezones[@]}"; do
 	timezone=${timezones[i]}
 
@@ -183,22 +182,22 @@ done
 
 
 
-# Apply core aliases and timzeone selection
-expand_underscore_alias() {
-	EXPAND_UNDERSCORE_ALIAS__OUTPUT=
+# Replace underscores with tz_picker output
+handle_underscore() {
+	HANDLE_UNDERSCORE__OUTPUT=
 	[[ $1 == '_' ]] || return 1
-	get_tz --prompt="Timezone $((i+1)): "
-	[[ $GET_TZ__OUTPUT ]] || print_stderr 1 '%s\n' 'no timezone selected'
-	EXPAND_UNDERSCORE_ALIAS__OUTPUT=$GET_TZ__OUTPUT
+	tz_picker --prompt="Timezone $((i+1)): "
+	[[ $TZ_PICKER__OUTPUT ]] || print_stderr 1 '%s\n' 'no timezone selected'
+	HANDLE_UNDERSCORE__OUTPUT=$TZ_PICKER__OUTPUT
 }
-expand_underscore_alias "$primary_tz" && primary_tz=$EXPAND_UNDERSCORE_ALIAS__OUTPUT
+handle_underscore "$primary_tz" && primary_tz=$HANDLE_UNDERSCORE__OUTPUT
 for i in "${!timezones[@]}"; do
-	expand_underscore_alias "${timezones[i]}" && timezones[i]=$EXPAND_UNDERSCORE_ALIAS__OUTPUT
+	handle_underscore "${timezones[i]}" && timezones[i]=$HANDLE_UNDERSCORE__OUTPUT
 done
 
 
 
-# Validate timezones exists
+# Validate all timezones exist
 validate_timezones() {
 	while [[ $1 ]]; do
 		[[ -e '/usr/share/zoneinfo/'$1 ]] || print_stderr 1 '%s\n' 'No such TZ: '"$1"
@@ -209,11 +208,12 @@ validate_timezones "$primary_tz" "${timezones[@]}"
 
 
 
+
 # Prepare dates for printing using the Unix epoch time of the primary date for all locales
 primary_date_epoch=$(TZ=$primary_tz date -d "$date_str" '+%s')
-primary_date_formatted=$(TZ=$primary_tz date -d "@${primary_date_epoch}" "$format")
+primary_date_formatted=$(TZ=$primary_tz date -d "@${primary_date_epoch}" "$date_output_format")
 for i in "${!timezones[@]}"; do
-	timezones_formatted[i]=$(TZ=${timezones[i]} date -d "@${primary_date_epoch}" "$format")
+	timezones_formatted[i]=$(TZ=${timezones[i]} date -d "@${primary_date_epoch}" "$date_output_format")
 done
 
 
